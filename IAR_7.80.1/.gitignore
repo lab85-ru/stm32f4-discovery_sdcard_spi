@@ -1,0 +1,3 @@
+*.dep
+git_commit.h
+EWARM/settings/
