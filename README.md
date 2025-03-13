@@ -36,7 +36,7 @@ write file size = 10Mb, t_start = 200, t_stop = 64949 Speed write = 163840 b/s
 Test 2:
 read file size = 10Mb, t_start = 64974, t_stop = 90487 Speed read = 419430 b/s
 
-<img src="./foto_img/board_top.jpg" width="900">
-<img src="./foto_img/board_bottom.jpg" width="900">
-<img src="./foto_img/terminal.png" width="900">
+<img src="./board_img/board_top.jpg" width="900">
+<img src="./board_img/board_bottom.jpg" width="900">
+<img src="./board_img/terminal.png" width="900">
 
