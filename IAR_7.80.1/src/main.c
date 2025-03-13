@@ -7,6 +7,10 @@
 // write file size = 15Mb t_start = 383, t_stop = 133839 Speed write = 118260 b/s
 // read file size = 15801700, t_start = 487, t_stop = 77619 Speed read = 205216 b/s
 //
+// HSE = 8MHz (CORE=168 MHz APB1=42MHz)
+// fask spi clk = 42/2=21 MHz
+// write file size = 10Mb, t_start = 200, t_stop = 64949 Speed write = 163840 b/s 
+// read file size = 10Mb, t_start = 64974, t_stop = 90487 Speed read = 419430 b/s
 //------------------------------------------------------------------------------
 #include "main.h"
 #include "stm32f407xx.h"
@@ -185,6 +189,11 @@ int main(void)
 {
     rcc_clk_en(&RCC->APB1ENR, RCC_APB1ENR_PWREN);
     rcc_clk_en(&RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN);
+
+#if HSE == 1
+    rcc_clk_en(&PWR->CR, PWR_CR_VOS); // VOS=1 for clk 144-168 MHZ
+    int res = rcc_hse_init();
+#endif
     
     sys_timer_init();
     hardware_init();
@@ -197,8 +206,20 @@ int main(void)
     printf_d(" Device Name  = %s\n", txt_device_name);
     printf_d(" GIT commit   = %s\n", git_commit_str);
     printf_d(" GIT branch   = %s\n", git_branch_str);
+
+#if HSI == 1
+    printf_d(" HSI          = %lu Hz\n", HSI_CLK_HZ);
+    printf_d(" SYSCLK       = %lu Hz\n", SYSCLK_HZ);
+#endif    
+
+#if HSE == 1
+    printf_d(" HSE          = %lu Hz\n", HSE_CLK_HZ);
+    printf_d(" SYSCLK       = %lu Hz\n", SYSCLK_HZ);
+#endif    
+    
     printf_d("================================================================================\n");
    
+    
     
     //--------------------------------------------------------------------------
     FRESULT fres;
@@ -208,7 +229,7 @@ int main(void)
     uint32_t r_bytes = 0;
     uint32_t w_bytes = 0;
     uint64_t file_size = 0;
-    const uint32_t WRITE_FILE_SIZE = 15 * 1024 * 1024;
+    const uint32_t WRITE_FILE_SIZE = 10 * 1024 * 1024;
 
     fres = f_mount(&FatFs, "", 1);
     if (fres != FR_OK){
@@ -268,7 +289,7 @@ int main(void)
     
     file_size = f_size(&fil);
     
-	printf_d("File soze = %llu\n", file_size);
+	printf_d("File size = %llu\n", file_size);
     
     t_start = time_get_ms_counter();
     
