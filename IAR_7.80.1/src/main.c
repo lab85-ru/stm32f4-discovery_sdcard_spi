@@ -1,16 +1,30 @@
 //------------------------------------------------------------------------------
 // Stm32f4-Discovery - STM32F407
-// SPI 8 bit - SDCARD FatFs test.
+//------------------------------------------------------------------------------
+// SPI 8 bit - SDCARD FatFs test.-----------------------------------------------
 //
 // HSI = 16MHz (all hard modules -> 16 MHz)
 // fask spi clk = 8 MHz
-// write file size = 15Mb t_start = 383, t_stop = 133839 Speed write = 118260 b/s
-// read file size = 15801700, t_start = 487, t_stop = 77619 Speed read = 205216 b/s
+// write file size = 10 Mb t_start = 279, t_stop = 99205 Speed write = 106997 b/s
+// read file size = 10 Mb t_start = 99243, t_stop = 157818 Speed read = 180788 b/s
 //
 // HSE = 8MHz (CORE=168 MHz APB1=42MHz)
 // fask spi clk = 42/2=21 MHz
 // write file size = 10Mb, t_start = 200, t_stop = 64949 Speed write = 163840 b/s 
 // read file size = 10Mb, t_start = 64974, t_stop = 90487 Speed read = 419430 b/s
+//
+//------------------------------------------------------------------------------
+// SPI 16 bit - SDCARD FatFs test.----------------------------------------------
+//
+// HSI = 16MHz (all hard modules -> 16 MHz)
+// fask spi clk = 8 MHz
+// write file size = 10 Mb, t_start = 281, t_stop = 85148 Speed write = 124830 b/s
+// read file size = 10 Mb, t_start = 85182, t_stop = 134274 Speed read = 213995 b/s
+//
+// HSE = 8MHz (CORE=168 MHz APB1=42MHz)
+// fask spi clk = 42/2=21 MHz
+// write file size = 10Mb, t_start = 1459, t_stop = 64511 Speed write = 166440 b/s
+// read file size = 10Mb, t_start = 64549, t_stop = 88646 Speed read = 436906 b/s
 //------------------------------------------------------------------------------
 #include "main.h"
 #include "stm32f407xx.h"
@@ -36,7 +50,7 @@
 #define DEBUG 0
 #endif
 
-const char txt_device_ver_soft[] = {"SV:"};
+const char txt_device_ver_soft[] = {"SV: 1.0.25"};
 const char txt_device_ver_hard[] = {"HV:stm32f4-discovery"};
 const char txt_device_name[]     = {"SPI sdcard test"};
 
@@ -216,10 +230,18 @@ int main(void)
     printf_d(" HSE          = %lu Hz\n", HSE_CLK_HZ);
     printf_d(" SYSCLK       = %lu Hz\n", SYSCLK_HZ);
 #endif    
+
+#if SPI8 == 1
+    printf_d(" CONFIG SPI   = 8 BIT\n");
+#endif    
+
+#if SPI16 == 1
+    printf_d(" CONFIG SPI   = 16 BIT\n");
+#endif    
     
     printf_d("================================================================================\n");
+
    
-    
     
     //--------------------------------------------------------------------------
     FRESULT fres;

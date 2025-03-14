@@ -187,8 +187,10 @@
           <name>CCDefines</name>
           <state>DEBUG=0</state>
           <state>STM32F407xx</state>
-          <state>HSE=1</state>
-          <state>HSI=0</state>
+          <state>HSE=0</state>
+          <state>HSI=1</state>
+          <state>SPI8=1</state>
+          <state>SPI16=0</state>
         </option>
         <option>
           <name>CCPreprocFile</name>

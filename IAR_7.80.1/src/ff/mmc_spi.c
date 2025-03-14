@@ -17,8 +17,9 @@
 
 #include "printf_hal.h"
 
-//#define FCLK_SLOW() { SPIx_CR1 = (SPIx_CR1 & ~0x38) | 0x28; }	/* Set SCLK = PCLK / 64 */
-//#define FCLK_FAST() { SPIx_CR1 = (SPIx_CR1 & ~0x38) | 0x00; }	/* Set SCLK = PCLK / 2 */
+#if (SPI16 == 1 && SPI8 == 1) || (SPI16 == 0 && SPI8 == 0)
+#error "set: SPI16=1, SPI8=0 or SPI16=0, SPI8=1"
+#endif
 
 #define FCLK_SLOW() { \
     SPI2->CR1 &= ~SPI_CR1_SPE; \
@@ -31,17 +32,10 @@
     SPI2->CR1 &= ~(SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2); \
     SPI2->CR1 |=  SPI_CR1_SPE; }  /* Set SCLK = PCLK / 2 */
 
-
-
 #define CS_HIGH()	spi2_cs(1)
 #define CS_LOW()	spi2_cs(0)
 #define	MMC_CD		1 /* Card detect (yes:true, no:false, default:true) */
 #define	MMC_WP		0 /* Write protected (yes:true, no:false, default:false) */
-
-
-
-
-
 
 /*--------------------------------------------------------------------------
 
@@ -49,7 +43,6 @@
 
 ---------------------------------------------------------------------------*/
 
-//#include "STM32F100.h"
 #include "diskio.h"
 
 
@@ -116,6 +109,7 @@ static BYTE xchg_spi (
 
 /* Receive multiple byte */
 // spi - 8bit
+#if SPI8 == 1
 static void rcvr_spi_multi (
 	BYTE *buff,		/* Pointer to data buffer */
 	UINT btr		/* Number of bytes to receive (even number) */
@@ -136,104 +130,45 @@ static void rcvr_spi_multi (
 		buff += 1;
 	}
 }
+#endif
 
 /* Receive multiple byte */
-// spi - 16bit -> ??? not working for f407 !
-static void rcvr_spi_multi_ne_rabotaet (
+// spi - 16bit
+#if SPI16 == 1
+static void rcvr_spi_multi /*_ne_rabotaet*/ (
 	BYTE *buff,		/* Pointer to data buffer */
 	UINT btr		/* Number of bytes to receive (even number) */
 )
 {
 	volatile WORD d;
     
-    
     /* Put SPI into 16-bit mode */
-    rcc_clk_en(&RCC->APB1RSTR, RCC_APB1RSTR_SPI2RST);   // SPI2 CLK RESET - ON
-    RCC->APB1RSTR = 0;   // SPI2 CLK RESET - OFF
+    SPI2->CR1 &= ~SPI_CR1_SPE;
+    SPI2->CR1 |= (SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 16-bit mode */
     
-    rcc_clk_en(&RCC->APB1ENR, RCC_APB1ENR_SPI2EN);   // SPI2 CLK EN
-    
-    SPI2->CR2 = SPI_CR2_SSOE;
-    SPI2->CR1 = SPI_CR1_SSM | SPI_CR1_DFF | SPI_CR1_MSTR | SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2 | SPI_CR1_SPE;
-    
-	for (uint16_t i=btr; i!=0; i=i-2) {					/* Receive the data block into buffer */
-        *(uint16_t*)&SPI2->DR = (uint16_t)0xFFFF;
+	for (uint16_t i=0; i<btr; i=i+2) {					/* Receive the data block into buffer */
+        
+        while ((SPI2->SR & SPI_SR_TXE) == 0);
+        *(volatile uint16_t*)&SPI2->DR = (uint16_t)0xFFFF;
 
         while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
         
-        d = *(uint16_t*)&SPI2->DR;	/* Get received word */
-
-printf_d("read: 0x%04x\n", d);
+        d = *(volatile uint16_t*)&SPI2->DR;	/* Get received word */
 
 		buff[1] = d; buff[0] = d >> 8;			/* Store it */
 		buff += 2;
 	}
 
     /* Put SPI into 8-bit mode */
-    rcc_clk_en(&RCC->APB1RSTR, RCC_APB1RSTR_SPI2RST);   // SPI2 CLK RESET - ON
-    RCC->APB1RSTR = 0;   // SPI2 CLK RESET - OFF
-    
-    rcc_clk_en(&RCC->APB1ENR, RCC_APB1ENR_SPI2EN);   // SPI2 CLK EN
-    
-    SPI2->CR2 = SPI_CR2_SSOE;
-    SPI2->CR1 = SPI_CR1_SSM | SPI_CR1_MSTR | SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2 | SPI_CR1_SPE;
-}
-
-static void rcvr_spi_multi_ (
-	BYTE *buff,		/* Pointer to data buffer */
-	UINT btr		/* Number of bytes to receive (even number) */
-)
-{
-	WORD d;
-    
-    d = SPI2->DR;	/* Get received word */
-
-	//SPIx_CR1 &= ~_BV(6);
-	//SPIx_CR1 |= (_BV(6) | _BV(11));	/* Put SPI into 16-bit mode */
-    
-    SPI2->CR1 &= ~SPI_CR1_SPE;
-    SPI2->CR1 |= (SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 16-bit mode */
-    
-	//SPI_DR = 0xFFFF;		/* Start the first SPI transaction */
-    //*(volatile uint16_t *)&
-    SPI2->DR = 0xFFFF;
-    
-	btr -= 2;
-	do {					/* Receive the data block into buffer */
-		//while ((SPI_SR & 0x83) != 0x03) ;	/* Wait for end of the SPI transaction */
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
-        
-		//d = SPIx_DR;						/* Get received word */
-        //*(volatile uint16_t *)&
-        d = SPI2->DR;	/* Get received word */
-        
-		//SPIx_DR = 0xFFFF;					/* Start next transaction */
-        //*(volatile uint16_t *)&
-        SPI2->DR = 0xFFFF;	/* Start next transaction */
-        
-printf_d("read: 0x%04x\n", d);
-		buff[1] = d; buff[0] = d >> 8; 		/* Store received data */
-		buff += 2;
-	} while (btr -= 2);
-    
-	//while ((SPIx_SR & 0x83) != 0x03) ;		/* Wait for end of the SPI transaction */
-    while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;		/* Wait for end of the SPI transaction */
-    
-	//d = SPIx_DR;							/* Get last word received */
-    //*(volatile uint16_t *)&
-    d = SPI2->DR;
-    
-	buff[1] = d; buff[0] = d >> 8;			/* Store it */
-
-	//SPIx_CR1 &= ~(_BV(6) | _BV(11));	/* Put SPI into 8-bit mode */
-	//SPIx_CR1 |= _BV(6);
     SPI2->CR1 &= ~(SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 8-bit mode */
     SPI2->CR1 |= SPI_CR1_SPE;
 }
+#endif
 
 
 #if FF_FS_READONLY == 0
 /* Send multiple byte, 8-bit mode !!! */
+#if SPI8 == 1
 static void xmit_spi_multi (
 	const BYTE *buff,	/* Pointer to the data */
 	UINT btx			/* Number of bytes to send (even number) */
@@ -251,54 +186,40 @@ static void xmit_spi_multi (
         d = SPI2->DR;	/* Get received word */
 	}
 }
+#endif
 
-/* Send multiple byte*/
-static void xmit_spi_multi_ (
+/* Send multiple byte, 16-bit mode !!! */
+#if SPI16 == 1
+static void xmit_spi_multi (
 	const BYTE *buff,	/* Pointer to the data */
 	UINT btx			/* Number of bytes to send (even number) */
 )
 {
-	WORD d;
-    volatile WORD tmp;
-
-	//SPIx_CR1 &= ~_BV(6);
-	//SPIx_CR1 |= (_BV(6) | _BV(11));		/* Put SPI into 16-bit mode */
+	volatile WORD d;
+    
+    /* Put SPI into 16-bit mode */
     SPI2->CR1 &= ~SPI_CR1_SPE;
-    SPI2->CR1 |= (SPI_CR1_DFF | SPI_CR1_SPE); /* Put SPI into 16-bit mode */
+    SPI2->CR1 |= (SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 16-bit mode */
 
-	d = buff[0] << 8 | buff[1]; buff += 2;
-	//SPIx_DR = d;	/* Send the first word */
-    //*(volatile uint16_t *)&
-    SPI2->DR = d;	/* Send the first word */
-    
-	btx -= 2;
-	do {
-		d = buff[0] << 8 | buff[1]; buff += 2;	/* Word to send next */
-		//while ((SPIx_SR & 0x83) != 0x03) ;	/* Wait for end of the SPI transaction */
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
+	for (UINT i=0; i<btx; i=i+2) {
         
-		//SPIx_DR;							/* Discard received word */
-        //*(volatile uint16_t *)&
-        tmp = SPI2->DR;
-        
-		//SPIx_DR = d;						/* Start next transaction */
-        //*(volatile uint16_t *)&
-        SPI2->DR = d; /* Start next transaction */
-        
-	} while (btx -= 2);
-    
-	//while ((SPIx_SR & 0x83) != 0x03) ;	/* Wait for end of the SPI transaction */
-    while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
-    
-	//SPIx_DR;							/* Discard received word */
-    //*(volatile uint16_t *)&
-    tmp = SPI2->DR;
+        d = buff[0] << 8 | buff[1];
+        buff += 2;
 
-	//SPIx_CR1 &= ~(_BV(6) | _BV(11));	/* Put SPI into 8-bit mode */
-	//SPIx_CR1 |= _BV(6);
+        while ((SPI2->SR & SPI_SR_TXE) == 0);
+        *(volatile uint16_t*)&SPI2->DR = d;
+
+        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)); /* Wait for end of the SPI transaction */
+        
+        d = *(volatile uint16_t*)&SPI2->DR;	/* Get received word */
+	}
+
+    /* Put SPI into 8-bit mode */
     SPI2->CR1 &= ~(SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 8-bit mode */
     SPI2->CR1 |= SPI_CR1_SPE;
 }
+#endif
+
 #endif
 
 
@@ -391,7 +312,6 @@ static int xmit_datablock (	/* 1:OK, 0:Failed */
 )
 {
 	BYTE resp;
-
 
 	if (!wait_ready(500)) return 0;		/* Wait for card ready */
 
