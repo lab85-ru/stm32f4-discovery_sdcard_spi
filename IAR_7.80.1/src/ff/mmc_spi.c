@@ -104,7 +104,8 @@ static BYTE xchg_spi (
 )
 {
     uint8_t b;
-        
+
+    while( (SPI2->SR & SPI_SR_TXE) == 0);
     SPI2->DR = dat;
     while( (SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE));
     b = SPI2->DR;
@@ -123,6 +124,8 @@ static void rcvr_spi_multi (
 	BYTE d;
     
 	for (UINT i=btr; i!=0; i--) {					/* Receive the data block into buffer */
+
+        while( (SPI2->SR & SPI_SR_TXE) == 0);
         SPI2->DR = 0xFF;
 
         while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
@@ -239,9 +242,11 @@ static void xmit_spi_multi (
 	volatile WORD d;
     
 	for (UINT i=0; i<btx; i++) {
+
+        while ((SPI2->SR & SPI_SR_TXE) == 0);
         SPI2->DR = buff[ i ];
 
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
+        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)); /* Wait for end of the SPI transaction */
         
         d = SPI2->DR;	/* Get received word */
 	}
