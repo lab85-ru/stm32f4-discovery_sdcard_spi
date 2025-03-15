@@ -12,30 +12,14 @@
 /-------------------------------------------------------------------------*/
 
 #include "hardware.h"
-#include "spi_407.h"
 #include "time_hal.h"
-
-#include "printf_hal.h"
+//#include "printf_hal.h"
+#include "spi.h"
 
 #if (SPI16 == 1 && SPI8 == 1) || (SPI16 == 0 && SPI8 == 0)
 #error "set: SPI16=1, SPI8=0 or SPI16=0, SPI8=1"
 #endif
 
-#define FCLK_SLOW() { \
-    SPI2->CR1 &= ~SPI_CR1_SPE; \
-    SPI2->CR1 &= ~(SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2); \
-    SPI2->CR1 |=  (SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2); \
-    SPI2->CR1 |=  SPI_CR1_SPE; } /* Set SCLK = PCLK / 256 */
-
-#define FCLK_FAST() { \
-    SPI2->CR1 &= ~SPI_CR1_SPE; \
-    SPI2->CR1 &= ~(SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2); \
-    SPI2->CR1 |=  SPI_CR1_SPE; }  /* Set SCLK = PCLK / 2 */
-
-#define CS_HIGH()	spi2_cs(1)
-#define CS_LOW()	spi2_cs(0)
-#define	MMC_CD		1 /* Card detect (yes:true, no:false, default:true) */
-#define	MMC_WP		0 /* Write protected (yes:true, no:false, default:false) */
 
 /*--------------------------------------------------------------------------
 
@@ -98,10 +82,10 @@ static BYTE xchg_spi (
 {
     uint8_t b;
 
-    while( (SPI2->SR & SPI_SR_TXE) == 0);
-    SPI2->DR = dat;
-    while( (SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE));
-    b = SPI2->DR;
+    WAIT_TX_READY();
+    SPI_DR_8BIT = dat;
+    WAIT_TX_END();
+    b = SPI_DR_8BIT;
         
     return b;
 }
@@ -119,12 +103,12 @@ static void rcvr_spi_multi (
     
 	for (UINT i=btr; i!=0; i--) {					/* Receive the data block into buffer */
 
-        while( (SPI2->SR & SPI_SR_TXE) == 0);
-        SPI2->DR = 0xFF;
+        WAIT_TX_READY();
+        SPI_DR_8BIT = 0xFF;
 
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
+        WAIT_TX_END();	/* Wait for end of the SPI transaction */
         
-        d = SPI2->DR;	/* Get received word */
+        d = SPI_DR_8BIT;	/* Get received word */
         
 		buff[0] = d; 		/* Store received data */
 		buff += 1;
@@ -135,7 +119,7 @@ static void rcvr_spi_multi (
 /* Receive multiple byte */
 // spi - 16bit
 #if SPI16 == 1
-static void rcvr_spi_multi /*_ne_rabotaet*/ (
+static void rcvr_spi_multi (
 	BYTE *buff,		/* Pointer to data buffer */
 	UINT btr		/* Number of bytes to receive (even number) */
 )
@@ -143,25 +127,24 @@ static void rcvr_spi_multi /*_ne_rabotaet*/ (
 	volatile WORD d;
     
     /* Put SPI into 16-bit mode */
-    SPI2->CR1 &= ~SPI_CR1_SPE;
-    SPI2->CR1 |= (SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 16-bit mode */
+    SPI_SET_16BIT();
     
-	for (uint16_t i=0; i<btr; i=i+2) {					/* Receive the data block into buffer */
+    /* Receive the data block into buffer */
+	for (uint16_t i=0; i<btr; i=i+2) {
         
-        while ((SPI2->SR & SPI_SR_TXE) == 0);
-        *(volatile uint16_t*)&SPI2->DR = (uint16_t)0xFFFF;
+        WAIT_TX_READY();
+        SPI_DR_16BIT = 0xFFFF;
 
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)) ;	/* Wait for end of the SPI transaction */
+        WAIT_TX_END() ;	/* Wait for end of the SPI transaction */
         
-        d = *(volatile uint16_t*)&SPI2->DR;	/* Get received word */
+        d = SPI_DR_16BIT;	/* Get received word */
 
-		buff[1] = d; buff[0] = d >> 8;			/* Store it */
+		buff[1] = d; buff[0] = d >> 8; /* Store it */
 		buff += 2;
 	}
 
     /* Put SPI into 8-bit mode */
-    SPI2->CR1 &= ~(SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 8-bit mode */
-    SPI2->CR1 |= SPI_CR1_SPE;
+    SPI_SET_8BIT();
 }
 #endif
 
@@ -178,12 +161,11 @@ static void xmit_spi_multi (
     
 	for (UINT i=0; i<btx; i++) {
 
-        while ((SPI2->SR & SPI_SR_TXE) == 0);
-        SPI2->DR = buff[ i ];
+        WAIT_TX_READY();
+        SPI_DR_8BIT = buff[ i ];
 
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)); /* Wait for end of the SPI transaction */
-        
-        d = SPI2->DR;	/* Get received word */
+        WAIT_TX_END(); /* Wait for end of the SPI transaction */
+        d = SPI_DR_8BIT;	/* Get received word */
 	}
 }
 #endif
@@ -198,25 +180,23 @@ static void xmit_spi_multi (
 	volatile WORD d;
     
     /* Put SPI into 16-bit mode */
-    SPI2->CR1 &= ~SPI_CR1_SPE;
-    SPI2->CR1 |= (SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 16-bit mode */
+    SPI_SET_16BIT();
 
 	for (UINT i=0; i<btx; i=i+2) {
         
         d = buff[0] << 8 | buff[1];
         buff += 2;
 
-        while ((SPI2->SR & SPI_SR_TXE) == 0);
-        *(volatile uint16_t*)&SPI2->DR = d;
+        WAIT_TX_READY();
+        SPI_DR_16BIT = d;
 
-        while ((SPI2->SR & (SPI_SR_BSY | SPI_SR_TXE | SPI_SR_RXNE)) != (SPI_SR_TXE | SPI_SR_RXNE)); /* Wait for end of the SPI transaction */
+        WAIT_TX_END(); /* Wait for end of the SPI transaction */
         
-        d = *(volatile uint16_t*)&SPI2->DR;	/* Get received word */
+        d = SPI_DR_16BIT;	/* Get received word */
 	}
 
     /* Put SPI into 8-bit mode */
-    SPI2->CR1 &= ~(SPI_CR1_SPE | SPI_CR1_DFF); /* Put SPI into 8-bit mode */
-    SPI2->CR1 |= SPI_CR1_SPE;
+    SPI_SET_8BIT();
 }
 #endif
 
@@ -243,20 +223,15 @@ static int wait_ready (	/* 1:Ready, 0:Timeout */
 	return (d == 0xFF) ? 1 : 0;
 }
 
-
-
 /*-----------------------------------------------------------------------*/
 /* Deselect card and release SPI                                         */
 /*-----------------------------------------------------------------------*/
-
 static void deselect (void)
 {
 	CS_HIGH();		/* Set CS# high */
 	xchg_spi(0xFF);	/* Dummy clock (force DO hi-z for multiple slave SPI) */
 
 }
-
-
 
 /*-----------------------------------------------------------------------*/
 /* Select card and wait for ready                                        */
@@ -271,8 +246,6 @@ static int select (void)	/* 1:OK, 0:Timeout */
 	deselect();
 	return 0;	/* Timeout */
 }
-
-
 
 /*-----------------------------------------------------------------------*/
 /* Receive a data packet from the MMC                                    */

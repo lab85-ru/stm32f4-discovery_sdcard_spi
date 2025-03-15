@@ -992,6 +992,9 @@
     <file>
       <name>$PROJ_DIR$\..\src\ff\mmc_spi.c</name>
     </file>
+    <file>
+      <name>$PROJ_DIR$\..\src\ff\spi.h</name>
+    </file>
   </group>
   <group>
     <name>hal</name>

@@ -54,6 +54,9 @@ const char txt_device_ver_soft[] = {"SV: 1.0.25"};
 const char txt_device_ver_hard[] = {"HV:stm32f4-discovery"};
 const char txt_device_name[]     = {"SPI sdcard test"};
 
+// set Test file size
+const uint32_t WRITE_FILE_SIZE = 1 * 1024 * 1024;
+
 uint8_t console_tx_char(uint8_t ch);
 
 FATFS FatFs;				/* File system object for each logical drive */
@@ -251,8 +254,8 @@ int main(void)
     uint32_t r_bytes = 0;
     uint32_t w_bytes = 0;
     uint64_t file_size = 0;
-    const uint32_t WRITE_FILE_SIZE = 10 * 1024 * 1024;
 
+    printf_d("Mount SD...\n");
     fres = f_mount(&FatFs, "", 1);
     if (fres != FR_OK){
         printf_d("ERROR: Mount SD, error num = %d\n", fres);
@@ -337,6 +340,14 @@ int main(void)
     printf_d("Speed read = %u b/s\n", speed);
     
     f_close(&fil);
+
+    printf_d("Unmount SD...\n");
+    fres = f_mount(&FatFs, "", 0);
+    if (fres != FR_OK){
+        printf_d("ERROR: UnMount SD, error num = %d\n", fres);
+        goto exit;
+    }
+    printf_d("Unmount OK.\n");
     
 exit:
     
