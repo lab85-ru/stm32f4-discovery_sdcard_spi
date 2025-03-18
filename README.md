@@ -67,3 +67,6 @@ read file size = 10Mb, t_start = 64549, t_stop = 88646 Speed read = 436906 b/s
 <img src="./board_img/board_bottom.jpg" width="900">
 <img src="./board_img/terminal.png" width="900">
 
+FIX: SDCARD board for SPI16 bit mode.
+
+<img src="./board_img/sdcard_board_fix.png" width="900">
