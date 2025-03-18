@@ -7,8 +7,6 @@ static volatile uint32_t sys_tick_counter    = 0;  // счетчик системного таймера
 static volatile uint32_t tick_sec_counter    = 0;  // счетчик секунд
 static volatile uint32_t tick_1000ms_counter = 0;  // счетчик 1000мс интервалов
 
-
-//#define F_CPU 		(8000000UL)	    // Тактовая МГЦ
 #define TimerTick  	(SYSCLK_HZ / 1000 - 1)	// Нам нужен килогерц
 
 //------------------------------------------------------------------------------

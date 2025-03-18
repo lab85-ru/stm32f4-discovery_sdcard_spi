@@ -91,8 +91,6 @@ DWORD get_fattime (void)
 
 //------------------------------------------------------------------------------
 // Console TX buffer
-#define QUEUE_CONSOL_TX_BUF_SIZE (1024)
-
 // flag console transfer: tx=1 transfer data, tx=0 not transfer data
 volatile uint8_t flag_consol_tx = 0;
 
