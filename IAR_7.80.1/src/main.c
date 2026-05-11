@@ -249,8 +249,8 @@ int main(void)
     uint32_t t_start = 0, t_stop = 0;
     FIL fil;
     uint32_t speed = 0;
-    uint32_t r_bytes = 0;
-    uint32_t w_bytes = 0;
+    UINT     r_bytes = 0;
+    UINT     w_bytes = 0;
     uint64_t file_size = 0;
 
     printf_d("Mount SD...\n");
